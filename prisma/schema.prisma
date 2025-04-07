@@ -1,0 +1,71 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String
+  createdAt     DateTime  @default(now())
+  phone         String    @unique
+  refreshToken  String?
+  notifications Notify[]
+  devices       Device[]
+  settings      Setting[]
+}
+
+model Notify {
+  id        String   @id @default(uuid())
+  message   String
+  read      Boolean  @default(false)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdAt DateTime @default(now())
+}
+
+model Device {
+  id       String          @id @default(uuid())
+  name     String
+  userId   String
+  user     User            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  data     DeviceData[]
+  settings DeviceSetting[]
+}
+
+model DeviceData {
+  id       String   @id @default(uuid())
+  deviceId String
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  value    Float
+  time     DateTime @default(now())
+  action   String   @default("none")
+}
+
+model Setting {
+  id        String          @id @default(uuid())
+  timeStart DateTime
+  timeEnd   DateTime
+  status    String
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  devices   DeviceSetting[]
+}
+
+model DeviceSetting {
+  DeviceSettingId String @id @default(uuid()) // 🔥 Khóa chính duy nhất
+  deviceId        String
+  settingId       String
+  valueStart      Float
+  valueEnd        Float
+  action          String
+
+  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  setting Setting @relation(fields: [settingId], references: [id], onDelete: Cascade)
+}
