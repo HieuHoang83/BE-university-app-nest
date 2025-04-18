@@ -12,10 +12,9 @@ import { Public, ResponseMessage, User } from 'src/decorators/customize';
 import { LocalAuthGuard } from './local-auth.guard';
 import { IUser } from 'src/interface/users.interface';
 import { UniqueGmail } from 'src/core/gmail.guard';
-import { Request, Response } from 'express';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
-import { RegisterDto } from './dto/register-user.dto';
 import { UserLoginDto } from './dto/login-user.dto';
+import { Response } from 'express';
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })

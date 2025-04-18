@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { compareSync, genSaltSync, hashSync } from 'bcryptjs';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto, UserRole } from './dto/create-user.dto';
+import { IUser } from 'src/interface/users.interface';
 
 @Injectable()
 export class UserService {
@@ -18,20 +19,84 @@ export class UserService {
   }
 
   // ✅ Thêm user mới vào database
-  async create(createUserDto: CreateUserDto) {
-    const user = await this.prismaService.user.findUnique({
-      where: { email: createUserDto.email },
+  async createUser(createUserDto: CreateUserDto) {
+    const existingUser = await this.prismaService.user.findFirst({
+      where: {
+        universityEmail: createUserDto.universityEmail,
+      },
     });
-    if (user)
-      throw new BadRequestException({ message: 'Email already exists' });
-    createUserDto.password = this.hashPassword(createUserDto.password);
-    try {
-      return await this.prismaService.user.create({
-        data: createUserDto,
-      });
-    } catch (error) {
-      throw new BadRequestException(error.message);
+
+    if (existingUser) {
+      throw new Error('Email already in use');
     }
+    if (
+      createUserDto.role === UserRole.STUDENT &&
+      createUserDto.studentInfo?.studentId
+    ) {
+      const existingStudent = await this.prismaService.student.findUnique({
+        where: {
+          studentId: createUserDto.studentInfo.studentId,
+        },
+      });
+
+      if (existingStudent) {
+        throw new Error('Mã số sinh viên đã tồn tại');
+      }
+    }
+
+    // Kiểm tra professorId nếu là giảng viên
+    if (
+      createUserDto.role === UserRole.PROFESSOR &&
+      createUserDto.professorInfo?.professorId
+    ) {
+      const existingProfessor = await this.prismaService.professor.findUnique({
+        where: {
+          professorId: createUserDto.professorInfo.professorId,
+        },
+      });
+
+      if (existingProfessor) {
+        throw new Error('Mã số giảng viên đã tồn tại');
+      }
+    }
+    const { role, studentInfo, professorInfo, ...userData } = createUserDto;
+
+    userData.password = this.hashPassword(createUserDto.password);
+    const user = await this.prismaService.user.create({
+      data: {
+        ...userData,
+        role,
+      },
+    });
+    return userData;
+    // Trả về đối tượng user đã tạo
+    if (role === UserRole.STUDENT) {
+      if (!studentInfo) {
+        throw new Error('Student information is required');
+      }
+
+      // Tạo Student
+      await this.prismaService.student.create({
+        data: {
+          ...studentInfo,
+          userId: user.id,
+        },
+      });
+    } else if (role === UserRole.PROFESSOR) {
+      if (!professorInfo) {
+        throw new Error('Professor information is required');
+      }
+
+      // Tạo Professor
+      await this.prismaService.professor.create({
+        data: {
+          ...professorInfo,
+          userId: user.id,
+        },
+      });
+    }
+
+    return user; // Trả về đối tượng user đã tạo
   }
 
   // ✅ Lấy danh sách tất cả users
@@ -60,7 +125,7 @@ export class UserService {
   async findOneByEmail(email: string) {
     try {
       return await this.prismaService.user.findUnique({
-        where: { email },
+        where: { universityEmail: email },
       });
     } catch (error) {
       throw new BadRequestException(error.message);
@@ -85,10 +150,10 @@ export class UserService {
   }
 
   // ✅ Cập nhật thông tin user
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async update(user: IUser, updateUserDto: UpdateUserDto) {
     try {
       return await this.prismaService.user.update({
-        where: { id },
+        where: { id: user.id },
         data: updateUserDto,
       });
     } catch (error) {

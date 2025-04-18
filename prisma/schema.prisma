@@ -8,64 +8,110 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Mô hình Sinh viên (Student)
 model User {
-  id            String    @id @default(uuid())
-  name          String
-  email         String    @unique
-  password      String
-  createdAt     DateTime  @default(now())
-  phone         String    @unique
-  refreshToken  String?
-  notifications Notify[]
-  devices       Device[]
-  settings      Setting[]
+  id              String     @id @default(uuid()) // ID chung
+  fullName        String // Họ và tên
+  email           String? // Email (trường hoặc cá nhân)
+  password        String // Mật khẩu (đã mã hóa)
+  universityEmail String     @unique // Email trường đại học (tuỳ chọn)
+  phoneNumber     String? // Số điện thoại
+  socialMedia     String? // Mạng xã hội
+  address         String? // Địa chỉ
+  dateOfBirth     DateTime? // Ngày sinh
+  gender          String? // Giới tính
+  placeOfBirth    String? // Nơi sinh
+  profilePicture  String? // Ảnh đại diện (tuỳ chọn)
+  role            String // Vai trò (Sinh viên, Giảng viên, Quản trị viên)
+  refreshToken    String?
+  // Quan hệ với Student và Professor
+  student         Student? // Quan hệ 1-1 với Student
+  professor       Professor? // Quan hệ 1-1 với Professor
 }
 
-model Notify {
-  id        String   @id @default(uuid())
-  message   String
-  read      Boolean  @default(false)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  createdAt DateTime @default(now())
+// Bảng sinh viên (Student)
+model Student {
+  id         String  @id @default(uuid()) // ID sinh viên
+  studentId  String  @unique // Mã số sinh viên
+  department String // Khoa
+  major      String? // Ngành
+  classId    String? // Mã lớp
+
+  // Khóa ngoại liên kết đến User
+  userId String @unique // Đảm bảo khóa ngoại là unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Quan hệ với bảng StudentClass (Đăng ký môn học)
+  studentClass StudentClass[]
 }
 
-model Device {
-  id       String          @id @default(uuid())
-  name     String
-  userId   String
-  user     User            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  data     DeviceData[]
-  settings DeviceSetting[]
+// Bảng giảng viên (Professor)
+
+// thể hiện điểm của học sinh trong 1 lớp học
+model StudentClass {
+  id             String       @id @default(uuid())
+  studentId      String // Khóa ngoại liên kết đến bảng Student (Sinh viên)
+  student        Student      @relation(fields: [studentId], references: [id])
+  classSectionId String // Khóa ngoại liên kết đến bảng CourseSection (Khóa học)
+  classSection   ClassSection @relation(fields: [classSectionId], references: [id])
+  grade          String? // Điểm của sinh viên trong khóa học
 }
 
-model DeviceData {
-  id       String   @id @default(uuid())
-  deviceId String
-  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  value    Float
-  time     DateTime @default(now())
-  action   String   @default("none")
+model Professor {
+  id           String     @id @default(uuid())
+  professorId  String     @unique
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId String
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  courses       ProfessorCourse[] // Quan hệ nhiều-nhiều thông qua bảng trung gian
+  classSections ClassSection[]
 }
 
-model Setting {
-  id        String          @id @default(uuid())
-  timeStart DateTime
-  timeEnd   DateTime
-  status    String
-  userId    String
-  user      User            @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  devices   DeviceSetting[]
+// thể hiện quan hệ 1 môn nhiều giáo viên và 1 giáo viên dạy nhiều môn
+model ProfessorCourse {
+  id          String @id @default(uuid())
+  professorId String
+  courseId    String
+
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([professorId, courseId]) // Đảm bảo mỗi cặp chỉ xuất hiện 1 lần
 }
 
-model DeviceSetting {
-  DeviceSettingId String @id @default(uuid()) // 🔥 Khóa chính duy nhất
-  deviceId        String
-  settingId       String
-  valueStart      Float
-  valueEnd        Float
-  action          String
+// Mô hình Môn học (Course)
+// thể hiện cho 1 môn hoc trong truong 
 
-  device  Device  @relation(fields: [deviceId], references: [id], onDelete: Cascade)
-  setting Setting @relation(fields: [settingId], references: [id], onDelete: Cascade)
+model Course {
+  id           String     @id @default(uuid())
+  name         String
+  code         String     @unique
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onUpdate: NoAction, onDelete: NoAction)
+
+  professors    ProfessorCourse[] // Quan hệ nhiều-nhiều thông qua bảng trung gian
+  classSections ClassSection[]
+}
+
+// thể hiện cho 1 lớp học trong trường
+model ClassSection {
+  id           String         @id @default(uuid()) // ID của khóa học
+  room         String // Phòng học
+  courseId     String // Khóa ngoại đến bảng Course (Môn học)
+  course       Course         @relation(fields: [courseId], references: [id], onUpdate: NoAction, onDelete: NoAction) // Thêm NoAction cho onUpdate, onDelete
+  professorId  String // Khóa ngoại đến bảng Professor (Giảng viên)
+  professor    Professor      @relation(fields: [professorId], references: [id], onUpdate: NoAction, onDelete: NoAction) // Thêm NoAction cho onUpdate, onDelete
+  studentClass StudentClass[] // Mối quan hệ many-to-many với sinh viên (Student)
+}
+
+// Mô hình Khoa (Department)
+
+model Department {
+  id         String      @id @default(uuid())
+  name       String
+  professors Professor[] // Quan hệ với bảng Giảng viên (Professor)
+  courses    Course[] // Quan hệ với bảng Môn học (Course)
 }

@@ -6,8 +6,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './user/user.module';
-import { SettingModule } from './setting/setting.module';
-import { DeviceModule } from './device/device.module';
+import { CourseModule } from './course/course.module';
+import { DepartmentModule } from './department/department.module';
+import { ClassModule } from './class/class.module';
 
 @Module({
   imports: [
@@ -23,8 +24,9 @@ import { DeviceModule } from './device/device.module';
     ]),
     UsersModule,
     AuthModule,
-    SettingModule,
-    DeviceModule,
+    CourseModule,
+    DepartmentModule,
+    ClassModule,
   ],
   controllers: [AppController],
   providers: [AppService],

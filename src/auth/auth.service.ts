@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
 import { IUser } from 'src/interface/users.interface';
-import { RegisterDto } from './dto/register-user.dto';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import ms from 'ms';
@@ -50,20 +49,23 @@ export class AuthService {
     password;
     let user: any;
     user = await this.userService.login(username, password);
+
     let refresh_token = this.createRefreshToken({
       id: user?.id,
-      email: user?.email,
-      name: user?.name,
+      universityEmail: user?.universityEmail,
+      fullName: user?.fullName,
+      role: user?.role,
     });
     let access_token = this.createAccessToken({
       id: user?.id,
-      email: user?.email,
-      name: user?.name,
+      universityEmail: user?.universityEmail,
+      fullName: user?.fullName,
+      role: user?.role,
     });
     return {
       user: {
-        email: user?.email,
-        name: user?.name,
+        universityEmail: user?.universityEmail,
+        fullName: user?.fullName,
       },
       token: {
         refresh_token: refresh_token,
